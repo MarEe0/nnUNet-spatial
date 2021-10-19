@@ -24,6 +24,13 @@ from nnunet.training.loss_functions.crossentropy import RobustCrossEntropyLoss
 from nnunet.training.loss_functions.dice_loss import SoftDiceLoss, SoftDiceLossSquared
 from nnunet.utilities.nd_softmax import softmax_helper
 
+def get_coordinates_map(image_dimensions):
+    _, _, h, w, d = image_dimensions
+    coordinates_map = torch.meshgrid([torch.arange(h), torch.arange(
+        w), torch.arange(d)])
+    coordinates_map = (coordinates_map[0].to(torch.device("cuda"))/h, coordinates_map[1].to(torch.device("cuda"))/w, coordinates_map[2].to(torch.device("cuda"))/d)  # normalizing
+    return coordinates_map
+
 
 class GraphSpatialLoss3D(nn.Module):
     def __init__(self, relations, image_dimensions=None):
@@ -38,41 +45,39 @@ class GraphSpatialLoss3D(nn.Module):
         self.relations = relations
 
         if image_dimensions is not None:
-            self.coordinates_map = self.get_coordinates_map(image_dimensions)
+            self.image_dimensions = image_dimensions
+            self.coordinates_map = get_coordinates_map(image_dimensions)
         else:
+            self.image_dimensions = None
             self.coordinates_map = None
 
-        # TODO: verify if we shoudl switch to 1/n_class
+        # TODO: verify if we should switch to 1/n_class
         self.threshold = nn.Threshold(0.5, 0)
-
-    def get_coordinates_map(image_dimensions):
-        _, _, h, w, d = image_dimensions
-        coordinates_map = torch.meshgrid([torch.arange(h), torch.arange(
-            w), torch.arange(d)]) / image_dimensions  # TODO make normalization optional?
-        return coordinates_map
 
     def forward(self, output):
         # Computing centroids
-        if self.coordinates_map is None:  # Initializing coordinates_map if not yet initialized
-            self.coordinates_map = self.get_coordinates_map(output.shape)
+        if self.image_dimensions is None:  # Initializing coordinates_map on-the-fly
+            self.coordinates_map = get_coordinates_map(output.size())
 
         coords_y, coords_x, coords_z = self.coordinates_map  # Getting coordinates map
 
-        coords_y.expand(output.shape)  # Fitting to the batch shape
-        coords_x.expand(output.shape)
-        coords_z.expand(output.shape)
+
+        coords_y = coords_y.expand(output.size())  # Fitting to the batch shape
+        coords_x = coords_x.expand(output.size())
+        coords_z = coords_z.expand(output.size())
+
 
         # Thresholding with the defined threshold
-        x_thresholded = self.threshold(output)
+        output_thresholded = self.threshold(output)
         # The total sum will be used for norm
-        x_sum = torch.sum(x_thresholded, dim=[0, 2, 3, 4])
+        output_sum = torch.sum(output_thresholded, dim=[0, 2, 3, 4])
 
-        centroids_y = torch.sum(x_thresholded * coords_y,
-                                dim=[0, 2, 3, 4]) / x_sum
-        centroids_x = torch.sum(x_thresholded * coords_x,
-                                dim=[0, 2, 3, 4]) / x_sum
-        centroids_z = torch.sum(x_thresholded * coords_z,
-                                dim=[0, 2, 3, 4]) / x_sum
+        centroids_y = torch.sum(output_thresholded * coords_y,
+                                dim=[0, 2, 3, 4]) / output_sum
+        centroids_x = torch.sum(output_thresholded * coords_x,
+                                dim=[0, 2, 3, 4]) / output_sum
+        centroids_z = torch.sum(output_thresholded * coords_z,
+                                dim=[0, 2, 3, 4]) / output_sum
 
         # Computing loss per relation
         dy_all = torch.empty(len(self.relations))
@@ -80,9 +85,9 @@ class GraphSpatialLoss3D(nn.Module):
         dz_all = torch.empty(len(self.relations))
         for relation_index, relation in enumerate(self.relations):
             i, j, dy_gt, dx_gt, dz_gt = relation
-            dy = centroids_y[:, i] - centroids_y[:, j]
-            dx = centroids_x[:, i] - centroids_x[:, j]
-            dz = centroids_z[:, i] - centroids_z[:, j]
+            dy = centroids_y[i] - centroids_y[j]
+            dx = centroids_x[i] - centroids_x[j]
+            dz = centroids_z[i] - centroids_z[j]
 
             diff_y = dy - dy_gt
             diff_x = dx - dx_gt

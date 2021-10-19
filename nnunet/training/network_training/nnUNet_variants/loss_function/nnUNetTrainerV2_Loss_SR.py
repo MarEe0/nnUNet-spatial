@@ -32,7 +32,7 @@ class nnUNetTrainerV2_Loss_SR_RG(nnUNetTrainerV2):
         # Loading relations file
         relations_file = join(self.dataset_directory, "relations.pkl")
         if not isfile(relations_file):
-            raise FileNotFoundError("Couldn't find {}".format(relations_file))
+            raise FileNotFoundError("Couldn't find {}. Make sure you add the --compute_relations flag when running nnUNet_plan_and_preprocess.".format(relations_file))
         self.relations = load_pickle(relations_file)
         self.print_to_log_file("Loaded {} relations.".format(len(self.relations)))
         for relation in self.relations:
