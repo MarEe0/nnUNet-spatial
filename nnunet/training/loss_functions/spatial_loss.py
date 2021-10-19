@@ -14,7 +14,7 @@
 #
 # Authors:
 #  * Mateus Riva (mateus.riva@telecom-paris.fr)
-#  * Mireia Alenya (mireia.alenya@upf.edu)
+#  * Mireia Alenyà (mireia.Alenyà@upf.edu)
 #  * Maria Inmaculada (mariainmaculada.villanueva@upf.edu)
 
 import torch
