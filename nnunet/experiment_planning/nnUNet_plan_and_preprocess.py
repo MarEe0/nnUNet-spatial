@@ -52,6 +52,8 @@ def main():
     parser.add_argument("--verify_dataset_integrity", required=False, default=False, action="store_true",
                         help="set this flag to check the dataset integrity. This is useful and should be done once for "
                              "each dataset!")
+    parser.add_argument("--compute_relations", required=False, default=False, action="store_true",
+                        help="set this flag to compute spatial relations and build the Relational Graph.")
     parser.add_argument("-overwrite_plans", type=str, default=None, required=False,
                         help="Use this to specify a plans file that should be used instead of whatever nnU-Net would "
                              "configure automatically. This will overwrite everything: intensity normalization, "
@@ -159,11 +161,15 @@ def main():
             exp_planner.plan_experiment()
             if not dont_run_preprocessing:  # double negative, yooo
                 exp_planner.run_preprocessing(threads)
+            if args.compute_relations:
+                exp_planner.compute_relations()
         if planner_2d is not None:
             exp_planner = planner_2d(cropped_out_dir, preprocessing_output_dir_this_task)
             exp_planner.plan_experiment()
             if not dont_run_preprocessing:  # double negative, yooo
                 exp_planner.run_preprocessing(threads)
+            if args.compute_relations:
+                exp_planner.compute_relations()
 
 
 if __name__ == "__main__":
