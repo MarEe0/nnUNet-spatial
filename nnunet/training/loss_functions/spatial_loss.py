@@ -24,6 +24,8 @@ from nnunet.training.loss_functions.crossentropy import RobustCrossEntropyLoss
 from nnunet.training.loss_functions.dice_loss import SoftDiceLoss, SoftDiceLossSquared
 from nnunet.utilities.nd_softmax import softmax_helper
 
+from batchgenerators.utilities.file_and_folder_operations import *
+
 def get_coordinates_map(image_dimensions):
     _, _, h, w, d = image_dimensions
     coordinates_map = torch.meshgrid([torch.arange(h), torch.arange(
@@ -33,7 +35,7 @@ def get_coordinates_map(image_dimensions):
 
 
 class GraphSpatialLoss3D(nn.Module):
-    def __init__(self, relations, image_dimensions=None):
+    def __init__(self, relations, image_dimensions=None, apply_nonlin=softmax_helper):
         """Spatial loss based on Relational Graph.
 
         Args:
@@ -51,10 +53,19 @@ class GraphSpatialLoss3D(nn.Module):
             self.image_dimensions = None
             self.coordinates_map = None
 
+        self.apply_nonlin = apply_nonlin
+
         # TODO: verify if we should switch to 1/n_class
         self.threshold = nn.Threshold(0.5, 0)
 
-    def forward(self, output):
+    def forward(self, output, report=False, curr_batch=-1, epoch=-1):
+        if report:
+            print("Reporting batch", epoch, curr_batch)
+            report_folder = "/home/mriva/Recherche/PhD/SATANN/nnUNet/reports/report{}-{}".format(epoch, curr_batch)
+            maybe_mkdir_p(report_folder)
+        # Applying non-linearity
+        if self.apply_nonlin is not None:
+            output = self.apply_nonlin(output)
         # Computing centroids
         if self.image_dimensions is None:  # Initializing coordinates_map on-the-fly
             self.coordinates_map = get_coordinates_map(output.size())
@@ -66,7 +77,7 @@ class GraphSpatialLoss3D(nn.Module):
         coords_x = coords_x.expand(output.size())
         coords_z = coords_z.expand(output.size())
 
-
+        # Output must be softmaxed
         # Thresholding with the defined threshold
         output_thresholded = self.threshold(output)
         # The total sum will be used for norm
@@ -78,6 +89,11 @@ class GraphSpatialLoss3D(nn.Module):
                                 dim=[0, 2, 3, 4]) / output_sum
         centroids_z = torch.sum(output_thresholded * coords_z,
                                 dim=[0, 2, 3, 4]) / output_sum
+        
+        if report:
+            torch.save(output, join(report_folder, "output.pt"))
+            torch.save(output_thresholded, join(report_folder, "output_thresholded.pt"))
+            torch.save(torch.stack((centroids_y, centroids_x, centroids_z)), join(report_folder, "centroids.pt"))
 
         # Computing loss per relation
         dy_all = torch.empty(len(self.relations))
@@ -103,6 +119,9 @@ class GraphSpatialLoss3D(nn.Module):
             dy_all[relation_index] = dy_error
             dx_all[relation_index] = dx_error
             dz_all[relation_index] = dz_error
+        
+        if report:
+            torch.save(torch.stack((dy_all, dx_all, dz_all)), join(report_folder, "deltas.pt"))
 
         # Aggregating the errors - TODO: other aggregations?
         error = dy_all.sum() + dx_all.sum() + dz_all.sum()
@@ -146,9 +165,9 @@ class DC_and_CE_and_RG_loss(nn.Module):
             self.dc = SoftDiceLossSquared(
                 apply_nonlin=softmax_helper, **soft_dice_kwargs)
 
-        self.rg = GraphSpatialLoss3D(**rg_kwargs)
+        self.rg = GraphSpatialLoss3D(**rg_kwargs, apply_nonlin=softmax_helper)
 
-    def forward(self, net_output, target):
+    def forward(self, net_output, target, report=False, curr_batch=-1, epoch=-1):
         """
         target must be b, c, x, y(, z) with c=1
         :param net_output:
@@ -174,7 +193,7 @@ class DC_and_CE_and_RG_loss(nn.Module):
             ce_loss *= mask[:, 0]
             ce_loss = ce_loss.sum() / mask.sum()
 
-        rg_loss = self.rg(net_output)
+        rg_loss = self.rg(net_output, report, curr_batch, epoch)
 
         if self.aggregate == "sum":
             result = self.weight_ce * ce_loss + self.weight_dice * \

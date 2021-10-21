@@ -17,10 +17,14 @@
 #  * Mireia Alenyà (mireia.Alenyà@upf.edu)
 #  * Maria Inmaculada (mariainmaculada.villanueva@upf.edu)
 
+import torch
+from torch.cuda.amp import autocast
+
 from batchgenerators.utilities.file_and_folder_operations import *
 
 from nnunet.training.loss_functions.spatial_loss import DC_and_CE_and_RG_loss
 from nnunet.training.network_training.nnUNetTrainerV2 import nnUNetTrainerV2
+from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
 
 
 class nnUNetTrainerV2_Loss_SR_RG(nnUNetTrainerV2):
@@ -51,3 +55,54 @@ class nnUNetTrainerV2_Loss_SR_RG(nnUNetTrainerV2):
         self.loss = DC_and_CE_and_RG_loss(
             {'batch_dice': self.batch_dice, 'smooth': 1e-5, 'do_bg': False}, {}, {"relations": self.relations, "image_dimensions": None},
             weight_ce=self.weight_ce, weight_dice=self.weight_dice, weight_rg=self.weight_rg)
+
+    def run_iteration(self, data_generator, do_backprop=True, run_online_evaluation=False, report=False, curr_batch=-1, epoch=-1):
+        """
+        gradient clipping improves training stability
+
+        :param data_generator:
+        :param do_backprop:
+        :param run_online_evaluation:
+        :return:
+        """
+        data_dict = next(data_generator)
+        data = data_dict['data']
+        target = data_dict['target']
+
+        data = maybe_to_torch(data)
+        target = maybe_to_torch(target)
+
+        if torch.cuda.is_available():
+            data = to_cuda(data)
+            target = to_cuda(target)
+
+        self.optimizer.zero_grad()
+
+        if self.fp16:
+            with autocast():
+                output = self.network(data)
+                del data
+                l = self.loss(output, target, report, curr_batch, epoch)
+
+            if do_backprop:
+                self.amp_grad_scaler.scale(l).backward()
+                self.amp_grad_scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+                self.amp_grad_scaler.step(self.optimizer)
+                self.amp_grad_scaler.update()
+        else:
+            output = self.network(data)
+            del data
+            l = self.loss(output, target, report, curr_batch, epoch)
+
+            if do_backprop:
+                l.backward()
+                torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+                self.optimizer.step()
+
+        if run_online_evaluation:
+            self.run_online_evaluation(output, target)
+
+        del target
+
+        return l.detach().cpu().numpy()

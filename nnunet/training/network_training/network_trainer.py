@@ -452,8 +452,11 @@ class NetworkTrainer(object):
                         tbar.set_postfix(loss=l)
                         train_losses_epoch.append(l)
             else:
-                for _ in range(self.num_batches_per_epoch):
-                    l = self.run_iteration(self.tr_gen, True)
+                for curr_batch in range(self.num_batches_per_epoch):
+                    report = False
+                    if curr_batch <= 1 or curr_batch == self.num_batches_per_epoch-1:
+                        report = True
+                    l = self.run_iteration(self.tr_gen, True, report=report, curr_batch=curr_batch, epoch=self.epoch)
                     train_losses_epoch.append(l)
 
             self.all_tr_losses.append(np.mean(train_losses_epoch))
