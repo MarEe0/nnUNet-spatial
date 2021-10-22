@@ -70,14 +70,14 @@ class GraphSpatialLoss3D(nn.Module):
         # Thresholding with the defined threshold
         output_thresholded = self.threshold(output)
         # The total sum will be used for norm
-        output_sum = torch.sum(output_thresholded, dim=[0, 2, 3, 4])
+        output_sum = torch.sum(output_thresholded, dim=[2, 3, 4])
 
         centroids_y = torch.sum(output_thresholded * coords_y,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
         centroids_x = torch.sum(output_thresholded * coords_x,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
         centroids_z = torch.sum(output_thresholded * coords_z,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
 
         # Computing loss per relation
         dy_all = torch.empty(len(self.relations))
@@ -85,9 +85,9 @@ class GraphSpatialLoss3D(nn.Module):
         dz_all = torch.empty(len(self.relations))
         for relation_index, relation in enumerate(self.relations):
             i, j, dy_gt, dx_gt, dz_gt = relation
-            dy = centroids_y[i] - centroids_y[j]
-            dx = centroids_x[i] - centroids_x[j]
-            dz = centroids_z[i] - centroids_z[j]
+            dy = centroids_y[:, i] - centroids_y[:, j]
+            dx = centroids_x[:, i] - centroids_x[:, j]
+            dz = centroids_z[:, i] - centroids_z[:, j]
 
             diff_y = dy - dy_gt
             diff_x = dx - dx_gt
