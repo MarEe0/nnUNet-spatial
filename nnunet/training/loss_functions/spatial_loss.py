@@ -28,8 +28,7 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 def get_coordinates_map(image_dimensions):
     _, _, h, w, d = image_dimensions
-    coordinates_map = torch.meshgrid([torch.arange(h), torch.arange(
-        w), torch.arange(d)])
+    coordinates_map = torch.meshgrid([torch.arange(h), torch.arange(w), torch.arange(d)])
     coordinates_map = (coordinates_map[0].to(torch.device("cuda"))/h, coordinates_map[1].to(torch.device("cuda"))/w, coordinates_map[2].to(torch.device("cuda"))/d)  # normalizing
     return coordinates_map
 
@@ -81,14 +80,14 @@ class GraphSpatialLoss3D(nn.Module):
         # Thresholding with the defined threshold
         output_thresholded = self.threshold(output)
         # The total sum will be used for norm
-        output_sum = torch.sum(output_thresholded, dim=[0, 2, 3, 4])
+        output_sum = torch.sum(output_thresholded, dim=[2, 3, 4])
 
         centroids_y = torch.sum(output_thresholded * coords_y,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
         centroids_x = torch.sum(output_thresholded * coords_x,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
         centroids_z = torch.sum(output_thresholded * coords_z,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
         
         if report:
             torch.save(output, join(report_folder, "output.pt"))
@@ -101,9 +100,9 @@ class GraphSpatialLoss3D(nn.Module):
         dz_all = torch.empty(len(self.relations))
         for relation_index, relation in enumerate(self.relations):
             i, j, dy_gt, dx_gt, dz_gt = relation
-            dy = centroids_y[i] - centroids_y[j]
-            dx = centroids_x[i] - centroids_x[j]
-            dz = centroids_z[i] - centroids_z[j]
+            dy = centroids_y[:, i] - centroids_y[:, j]
+            dx = centroids_x[:, i] - centroids_x[:, j]
+            dz = centroids_z[:, i] - centroids_z[:, j]
 
             diff_y = dy - dy_gt
             diff_x = dx - dx_gt
