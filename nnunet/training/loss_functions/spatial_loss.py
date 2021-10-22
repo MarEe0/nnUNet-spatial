@@ -70,14 +70,14 @@ class GraphSpatialLoss3D(nn.Module):
         # Thresholding with the defined threshold
         output_thresholded = self.threshold(output)
         # The total sum will be used for norm
-        output_sum = torch.sum(output_thresholded, dim=[0, 2, 3, 4])
+        output_sum = torch.sum(output_thresholded, dim=[2, 3, 4])
 
         centroids_y = torch.sum(output_thresholded * coords_y,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
         centroids_x = torch.sum(output_thresholded * coords_x,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
         centroids_z = torch.sum(output_thresholded * coords_z,
-                                dim=[0, 2, 3, 4]) / output_sum
+                                dim=[2, 3, 4]) / output_sum
 
         # Computing loss per relation
         dy_all = torch.empty(len(self.relations))
