@@ -20,10 +20,11 @@
 from batchgenerators.utilities.file_and_folder_operations import *
 
 from nnunet.training.loss_functions.spatial_loss import DC_and_CE_and_RG_loss
-from nnunet.training.network_training.nnUNetTrainerV2 import nnUNetTrainerV2
+#from nnunet.training.network_training.nnUNetTrainerV2 import nnUNetTrainerV2
+from nnunet.training.network_training.nnUNet_variants.data_augmentation.nnUNetTrainerV2_noMirroring import nnUNetTrainerV2_noMirroring
 
 
-class nnUNetTrainerV2_Loss_SR_RG(nnUNetTrainerV2):
+class nnUNetTrainerV2_Loss_SR_RG(nnUNetTrainerV2_noMirroring):
     def __init__(self, plans_file, fold, output_folder=None, dataset_directory=None, batch_dice=True, stage=None,
                  unpack_data=True, deterministic=True, fp16=False):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
