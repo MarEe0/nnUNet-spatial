@@ -80,9 +80,15 @@ class GraphSpatialLoss3D(nn.Module):
                                 dim=[2, 3, 4]) / output_sum
 
         # Computing loss per relation
-        dy_all = torch.empty(len(self.relations))
-        dx_all = torch.empty(len(self.relations))
-        dz_all = torch.empty(len(self.relations))
+        if torch.cuda.is_available:
+            dy_all = torch.empty(len(self.relations), device="cuda")
+            dx_all = torch.empty(len(self.relations), device="cuda")
+            dz_all = torch.empty(len(self.relations), device="cuda")
+        else:
+            dy_all = torch.empty(len(self.relations))
+            dx_all = torch.empty(len(self.relations))
+            dz_all = torch.empty(len(self.relations))
+
         for relation_index, relation in enumerate(self.relations):
             i, j, dy_gt, dx_gt, dz_gt = relation
             dy = centroids_y[:, i] - centroids_y[:, j]
