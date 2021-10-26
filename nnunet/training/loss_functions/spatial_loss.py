@@ -174,7 +174,7 @@ class DC_and_CE_and_RG_loss(nn.Module):
             ce_loss *= mask[:, 0]
             ce_loss = ce_loss.sum() / mask.sum()
 
-        rg_loss = self.rg(net_output)
+        rg_loss = self.rg(net_output) if self.weight_rg != 0 else 0
 
         if self.aggregate == "sum":
             result = self.weight_ce * ce_loss + self.weight_dice * \
