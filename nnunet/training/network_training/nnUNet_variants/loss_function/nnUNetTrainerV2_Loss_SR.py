@@ -53,6 +53,9 @@ class nnUNetTrainerV2_Loss_SR_RG(nnUNetTrainerV2_noMirroring):
         self.loss = DC_and_CE_and_RG_loss(
             {'batch_dice': self.batch_dice, 'smooth': 1e-5, 'do_bg': False}, {}, {"relations": self.relations, "image_dimensions": None},
             weight_ce=self.weight_ce, weight_dice=self.weight_dice, weight_rg=self.weight_rg)
+        
+        ## WARNING: we are chaning the max number of epochs via hardcode
+        self.max_num_epochs = 100
 
 class nnUNetTrainerV2_Loss_SR_RG_noDataAugmentation(nnUNetTrainerV2_noDataAugmentation):
     def __init__(self, plans_file, fold, output_folder=None, dataset_directory=None, batch_dice=True, stage=None,
@@ -82,3 +85,6 @@ class nnUNetTrainerV2_Loss_SR_RG_noDataAugmentation(nnUNetTrainerV2_noDataAugmen
         self.loss = DC_and_CE_and_RG_loss(
             {'batch_dice': self.batch_dice, 'smooth': 1e-5, 'do_bg': False}, {}, {"relations": self.relations, "image_dimensions": None},
             weight_ce=self.weight_ce, weight_dice=self.weight_dice, weight_rg=self.weight_rg)
+        
+        ## WARNING: we are chaning the max number of epochs via hardcode
+        self.max_num_epochs = 100
